@@ -4,7 +4,7 @@ import logging
 import mlflow
 import numpy as np
 import xgboost as xgb
-from lightgbm import LGBMClassifier
+# from lightgbm import LGBMClassifier
 from catboost import CatBoostClassifier
 from mlflow.models.signature import infer_signature
 from sklearn.metrics import roc_auc_score
