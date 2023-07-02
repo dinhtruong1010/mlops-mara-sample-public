@@ -4,6 +4,13 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import MiniBatchKMeans
 from problem_config import ProblemConfig, ProblemConst, get_prob_config
+from utils import AppConfig, AppPath
+import yaml
+from problem_config import ProblemConst, create_prob_config
+import mlflow
+import os
+from tqdm import tqdm
+from raw_data_processor import RawDataProcessor
 
 
 def label_captured_data(prob_config: ProblemConfig):
@@ -60,6 +67,60 @@ def label_captured_data(prob_config: ProblemConfig):
     captured_x.to_parquet(prob_config.captured_x_path, index=False)
     approx_label_df.to_parquet(prob_config.uncertain_y_path, index=False)
 
+def using_model_cluster(prob_config_path):
+    
+    with open(prob_config_path, "r") as f:
+        config = yaml.safe_load(f)
+    logging.info(f"model-config: {config}")
+
+    mlflow.set_tracking_uri(AppConfig.MLFLOW_TRACKING_URI)
+
+    prob_config = create_prob_config(
+        config["phase_id"], config["prob_id"]
+    )
+
+    # load category_index
+    category_index = RawDataProcessor.load_category_index(prob_config)
+
+    # load model
+    model_uri = os.path.join(
+        "models:/", config["model_name"], str(config["model_version"])
+    )
+    model = mlflow.sklearn.load_model(model_uri)
+    ######predict unlabeled data######
+    logging.info("Load captured data")
+    captured_x = pd.DataFrame()
+    thresh = 0.7
+    approx_label = []
+    for file_path in prob_config.captured_data_dir.glob("*.parquet"):
+        print(file_path)
+        captured_data = pd.read_parquet(file_path)
+        # raw_df = pd.DataFrame(captured_data.rows, columns=captured_data.columns)
+        feature_df = RawDataProcessor.apply_category_features(
+            raw_df=captured_data,
+            categorical_cols= prob_config.categorical_cols,
+            category_index= category_index,
+        )
+        try:
+            captured_data.drop(['is_drift', 'batch_id'], axis=1,inplace=True)
+        except:
+            pass
+        for i in tqdm(range(len(feature_df))):
+            # print(captured_data.iloc[[i]])
+            # for j in feature_df.iloc[[i]].columns:
+            #     if feature_df.iloc[[i]][j].isnull().any():
+            #         feature_df.iloc[[i]][j] = 
+            prob_predict = model.predict_proba(feature_df.iloc[[i]])
+            
+            if np.max(prob_predict) > thresh:
+                # print(prob_predict)
+                captured_x = pd.concat([captured_x, feature_df.iloc[[i]]])
+                approx_label.append(np.argmax(prob_predict))
+    
+    
+    approx_label_df = pd.DataFrame(approx_label, columns=[prob_config.target_col])
+    captured_x.to_parquet(prob_config.captured_x_path, index=False)
+    approx_label_df.to_parquet(prob_config.uncertain_y_path, index=False)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -68,4 +129,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     prob_config = get_prob_config(args.phase_id, args.prob_id)
-    label_captured_data(prob_config)
+    # label_captured_data(prob_config)
+    using_model_cluster(prob_config)
