@@ -130,10 +130,11 @@ if __name__ == "__main__":
         / "model-1.yaml"
     ).as_posix()
     parser = argparse.ArgumentParser()
+    parser.add_argument("--config-path", type=str, default=default_config_path)
     parser.add_argument("--phase-id", type=str, default=ProblemConst.PHASE1)
     parser.add_argument("--prob-id", type=str, default=ProblemConst.PROB1)
     args = parser.parse_args()
 
     prob_config = get_prob_config(args.phase_id, args.prob_id)
     # label_captured_data(prob_config)
-    using_model_cluster(default_config_path)
+    using_model_cluster(args.config_path)
