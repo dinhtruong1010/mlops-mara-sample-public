@@ -4,9 +4,11 @@ import logging
 import mlflow
 import numpy as np
 import xgboost as xgb
+from lightgbm import LGBMClassifier
+from catboost import CatBoostClassifier
 from mlflow.models.signature import infer_signature
 from sklearn.metrics import roc_auc_score
-
+from sklearn.model_selection import train_test_split
 from problem_config import (
     ProblemConfig,
     ProblemConst,
@@ -47,9 +49,30 @@ class ModelTrainer:
             objective = "binary:logistic"
         else:
             objective = "multi:softprob"
-        model = xgb.XGBClassifier(objective=objective, **model_params)
-        model.fit(train_x, train_y)
+        # model = xgb.XGBClassifier(nthread = -1,objective=objective, **model_params, n_estimators= 1000)
+        # model = LGBMClassifier(n_estimators= 1000)#random_state=47)
+        
+        #split train and valid with rate: 8-2
+        x_train,x_val,y_train,y_val = train_test_split(train_x, train_y, test_size = 0.2, random_state = 20)
 
+
+        # Load model as a PyFuncModel.
+        # cat_feature = list(range(0, train_x.shape[1]))
+        # print(cat_feature)
+        model = CatBoostClassifier(
+            iterations = 3000,
+            learning_rate = 0.1
+            # loss_function = 'CrossEntropy'
+            )
+        #train model with early stopping and evaluate metric
+        model.fit(train_x, train_y, 
+                # eval_metric = "error",
+                early_stopping_rounds = 30,
+                # cat_features = cat_feature, 
+                #   eval_set = [(train_x, train_y)]
+                )
+        
+        # model.fit(train_x, train_y)
         # evaluate
         test_x, test_y = RawDataProcessor.load_test_data(prob_config)
         predictions = model.predict(test_x)
