@@ -16,7 +16,10 @@ def label_captured_data(prob_config: ProblemConfig):
     for file_path in prob_config.captured_data_dir.glob("*.parquet"):
         captured_data = pd.read_parquet(file_path)
         captured_x = pd.concat([captured_x, captured_data])
-
+    try:
+        captured_x = captured_x.drop(['is_drift', 'batch_id'], axis=1)
+    except:
+        pass
     np_captured_x = captured_x.to_numpy()
     n_captured = len(np_captured_x)
     n_samples = len(train_x) + n_captured
