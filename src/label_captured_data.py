@@ -123,6 +123,12 @@ def using_model_cluster(prob_config_path):
     approx_label_df.to_parquet(prob_config.uncertain_y_path, index=False)
 
 if __name__ == "__main__":
+    default_config_path = (
+        AppPath.MODEL_CONFIG_DIR
+        / ProblemConst.PHASE1
+        / ProblemConst.PROB1
+        / "model-1.yaml"
+    ).as_posix()
     parser = argparse.ArgumentParser()
     parser.add_argument("--phase-id", type=str, default=ProblemConst.PHASE1)
     parser.add_argument("--prob-id", type=str, default=ProblemConst.PROB1)
@@ -130,4 +136,4 @@ if __name__ == "__main__":
 
     prob_config = get_prob_config(args.phase_id, args.prob_id)
     # label_captured_data(prob_config)
-    using_model_cluster(prob_config)
+    using_model_cluster(default_config_path)
